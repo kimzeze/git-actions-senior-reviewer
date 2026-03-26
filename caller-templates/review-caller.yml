@@ -1,0 +1,21 @@
+# 이 파일을 대상 레포의 .github/workflows/senior-review.yml 에 복사하세요.
+# 필요한 시크릿: ANTHROPIC_API_KEY, SLACK_WEBHOOK_URL (선택)
+
+name: Senior Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+jobs:
+  review:
+    # draft PR은 건너뜀
+    if: github.event.pull_request.draft == false
+    uses: aptimizer-co/senior-reviewer/.github/workflows/review-executor.yml@main
+    with:
+      service_name: "frontend-aptimizer"
+      review_model: "auto"
+      exclude_patterns: "*.test.ts,*.test.tsx,*.stories.tsx,pnpm-lock.yaml,*.md"
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

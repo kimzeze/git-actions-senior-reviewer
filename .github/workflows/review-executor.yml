@@ -1,0 +1,82 @@
+name: Senior Review Executor
+
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        description: "서비스 식별자 (프롬프트 오버라이드용)"
+        required: false
+        type: string
+        default: "default"
+      review_model:
+        description: "모델 오버라이드 (auto, claude-sonnet-4-6, claude-opus-4-6)"
+        required: false
+        type: string
+        default: "auto"
+      exclude_patterns:
+        description: "리뷰 제외 패턴 (콤마 구분)"
+        required: false
+        type: string
+        default: ""
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: true
+      SLACK_WEBHOOK_URL:
+        required: false
+
+jobs:
+  review:
+    name: "🔍 Senior Code Review"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout senior-reviewer
+        uses: actions/checkout@v4
+        with:
+          repository: aptimizer-co/senior-reviewer
+          ref: main
+          path: reviewer
+          token: ${{ secrets.ANTHROPIC_API_KEY && github.token }}
+
+      - name: Checkout target repo
+        uses: actions/checkout@v4
+        with:
+          path: target
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        working-directory: reviewer
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        working-directory: reviewer
+        run: pnpm build
+
+      - name: Run Senior Review
+        working-directory: reviewer
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          SERVICE_NAME: ${{ inputs.service_name }}
+          REVIEW_MODEL: ${{ inputs.review_model }}
+          EXCLUDE_PATTERNS: ${{ inputs.exclude_patterns }}
+          TARGET_REPO_PATH: ${{ github.workspace }}/target
+        run: node dist/index.js
