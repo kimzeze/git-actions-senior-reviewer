@@ -1,5 +1,5 @@
 # 이 파일을 대상 레포의 .github/workflows/senior-review.yml 에 복사하세요.
-# 필요한 시크릿: ANTHROPIC_API_KEY, SLACK_WEBHOOK_URL (선택)
+# 필요한 시크릿: ANTHROPIC_API_KEY, REVIEWER_TOKEN, SLACK_WEBHOOK_URL (선택)
 
 name: Senior Code Review
 

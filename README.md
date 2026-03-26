@@ -217,9 +217,11 @@ GitHub Organization → Settings → Secrets and variables → Actions에서:
 | 시크릿 | 필수 | 설명 |
 |--------|------|------|
 | `ANTHROPIC_API_KEY` | **필수** | Anthropic API 키 ([console.anthropic.com](https://console.anthropic.com)) |
+| `REVIEWER_TOKEN` | **필수** | `fe-senior-reviewer` private 레포 checkout용 PAT (Contents Read-only) |
 | `SLACK_WEBHOOK_URL` | 선택 | Slack Incoming Webhook URL |
 
 > **중요:** Organization-level secret으로 설정해야 모든 레포에서 사용할 수 있습니다.
+> 각 secret의 Repository access에 대상 레포를 추가해야 합니다.
 > 레포별로 설정해도 됩니다 (Settings → Secrets and variables → Actions).
 
 ### 3단계: 대상 레포에 Caller Workflow 추가
@@ -243,6 +245,7 @@ jobs:
       exclude_patterns: "*.test.ts,*.test.tsx,*.stories.tsx,pnpm-lock.yaml,*.md"
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      REVIEWER_TOKEN: ${{ secrets.REVIEWER_TOKEN }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 ```
 
@@ -269,6 +272,7 @@ Caller workflow에서 Executor에 전달하는 설정입니다.
 | Secret | 필수 | 설명 |
 |--------|------|------|
 | `ANTHROPIC_API_KEY` | **필수** | Anthropic API 키 |
+| `REVIEWER_TOKEN` | **필수** | `fe-senior-reviewer` checkout용 PAT (Fine-grained, Contents Read-only) |
 | `SLACK_WEBHOOK_URL` | 선택 | Slack 알림용 Incoming Webhook URL |
 
 ### 환경변수 (로컬 실행 시)
@@ -430,12 +434,13 @@ jobs:
       exclude_patterns: "*.test.ts,*.md"   # 제외할 파일 패턴
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      REVIEWER_TOKEN: ${{ secrets.REVIEWER_TOKEN }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 ```
 
 ### 2. 시크릿 확인
 
-`ANTHROPIC_API_KEY`가 Organization-level로 설정되어 있으면 별도 작업 불필요.
+`ANTHROPIC_API_KEY`와 `REVIEWER_TOKEN`이 Organization-level로 설정되어 있으면 해당 secret의 Repository access에 새 레포만 추가하면 됩니다.
 레포별로 관리한다면 해당 레포의 Settings → Secrets에 추가.
 
 ---
