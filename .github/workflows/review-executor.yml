@@ -21,6 +21,9 @@ on:
     secrets:
       ANTHROPIC_API_KEY:
         required: true
+      REVIEWER_TOKEN:
+        description: "PAT for checking out fe-senior-reviewer (private repo)"
+        required: true
       SLACK_WEBHOOK_URL:
         required: false
 
@@ -40,7 +43,7 @@ jobs:
           repository: aptimizer-co/fe-senior-reviewer
           ref: main
           path: reviewer
-          token: ${{ github.token }}
+          token: ${{ secrets.REVIEWER_TOKEN }}
 
       - name: Checkout target repo
         uses: actions/checkout@v4
