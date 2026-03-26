@@ -37,10 +37,10 @@ jobs:
       - name: Checkout senior-reviewer
         uses: actions/checkout@v4
         with:
-          repository: aptimizer-co/senior-reviewer
+          repository: aptimizer-co/fe-senior-reviewer
           ref: main
           path: reviewer
-          token: ${{ secrets.ANTHROPIC_API_KEY && github.token }}
+          token: ${{ github.token }}
 
       - name: Checkout target repo
         uses: actions/checkout@v4
