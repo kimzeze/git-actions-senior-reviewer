@@ -2,31 +2,18 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { AgentFinding, AgentResult, PRContext } from "../config/types.js";
 import { logger } from "../utils/logger.js";
 import { REPORT_FINDINGS_TOOL, type SynthesizerAgent } from "./types.js";
+import { buildSystemPrompt, type PromptContext } from "./base-agent.js";
 
 export class Synthesizer implements SynthesizerAgent {
-  private systemPrompt = `당신은 시니어 리드 엔지니어로, 여러 리뷰어의 코드 리뷰 결과를 검증하고 종합합니다.
+  private promptContext: PromptContext;
 
-## 역할
-여러 에이전트(버그 탐색, 보안 점검, 코드 품질)가 발견한 이슈들을 검증하여 최종 리뷰를 작성합니다.
+  constructor(promptContext: PromptContext = { stacks: [] }) {
+    this.promptContext = promptContext;
+  }
 
-## 작업 절차
-1. **검증**: 각 발견사항을 실제 diff와 대조하여 진짜 문제인지 확인
-2. **오탐 제거**: 코드를 잘못 읽었거나, 실제로는 문제가 아닌 항목 제거
-3. **중복 제거**: 여러 에이전트가 같은 문제를 다른 관점에서 보고한 경우 병합
-4. **심각도 조정**: 전체 맥락을 고려하여 최종 심각도 결정
-5. **필터링**: nitpick은 최대 3개까지만 유지. 가장 가치 있는 것만 남김
-
-## 판단 기준
-- 파일과 줄 번호가 diff에 실제로 존재하는지 확인
-- 지적한 코드가 실제로 그 문제를 가지고 있는지 재확인
-- 프로젝트 맥락을 고려 (예: 테스트 코드에서의 any 사용은 용인)
-- 수정 제안이 실현 가능한지 확인
-
-## 출력 규칙
-- 검증을 통과한 발견사항만 반환합니다
-- 각 항목의 description을 명확하고 실행 가능하게 개선합니다
-- 발견사항이 모두 오탐이면 빈 배열을 반환합니다
-- 모든 출력은 한국어로 작성합니다`;
+  private getSystemPrompt(): string {
+    return buildSystemPrompt("synthesizer", this.promptContext);
+  }
 
   async synthesize(
     findings: AgentFinding[],
@@ -83,10 +70,12 @@ ${diffContent}
       inputFindings: findings.length,
     });
 
+    const systemPrompt = this.getSystemPrompt();
+
     const response = await client.messages.create({
       model,
       max_tokens: 8192,
-      system: this.systemPrompt,
+      system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
       tools: [REPORT_FINDINGS_TOOL],
       tool_choice: { type: "tool", name: "report_findings" },

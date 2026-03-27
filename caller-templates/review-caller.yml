@@ -16,6 +16,8 @@ jobs:
       service_name: "frontend-aptimizer"
       review_model: "auto"
       exclude_patterns: "*.test.ts,*.test.tsx,*.stories.tsx,pnpm-lock.yaml,*.md"
+      team: "frontend"
+      stacks: "nextjs-app-router,react-performance,tailwindcss,tanstack-query"
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       REVIEWER_TOKEN: ${{ secrets.REVIEWER_TOKEN }}

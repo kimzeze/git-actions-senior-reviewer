@@ -18,6 +18,8 @@ export const ReviewConfigSchema = z.object({
   serviceName: z.string().default("default"),
   reviewModel: z.string().default("auto"),
   excludePatterns: z.array(z.string()).default([]),
+  team: z.string().optional(),
+  stacks: z.array(z.string()).default([]),
   slackWebhookUrl: z.string().optional(),
   targetRepoPath: z.string().optional(),
 });

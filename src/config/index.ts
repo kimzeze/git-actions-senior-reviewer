@@ -2,6 +2,7 @@ import { ReviewConfigSchema, type ReviewConfig } from "./types.js";
 
 export function loadConfig(): ReviewConfig {
   const excludeRaw = process.env["EXCLUDE_PATTERNS"] ?? "";
+  const stacksRaw = process.env["STACKS"] ?? "";
 
   return ReviewConfigSchema.parse({
     anthropicApiKey: process.env["ANTHROPIC_API_KEY"],
@@ -13,6 +14,10 @@ export function loadConfig(): ReviewConfig {
     reviewModel: process.env["REVIEW_MODEL"] ?? "auto",
     excludePatterns: excludeRaw
       ? excludeRaw.split(",").map((p) => p.trim())
+      : [],
+    team: process.env["TEAM"] || undefined,
+    stacks: stacksRaw
+      ? stacksRaw.split(",").map((s) => s.trim())
       : [],
     slackWebhookUrl: process.env["SLACK_WEBHOOK_URL"] || undefined,
     targetRepoPath: process.env["TARGET_REPO_PATH"] || undefined,

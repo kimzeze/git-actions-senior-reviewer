@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Senior Reviewer — System Architecture</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface-hover: #1a1a28;
+    --border: #2a2a3a;
+    --border-accent: #4f46e5;
+    --text: #e4e4ed;
+    --text-muted: #8888a0;
+    --text-dim: #5a5a70;
+    --accent: #6366f1;
+    --accent-light: #818cf8;
+    --green: #34d399;
+    --green-dim: #065f46;
+    --orange: #fb923c;
+    --orange-dim: #7c2d12;
+    --red: #f87171;
+    --red-dim: #7f1d1d;
+    --blue: #60a5fa;
+    --blue-dim: #1e3a5f;
+    --purple: #a78bfa;
+    --purple-dim: #4c1d95;
+    --cyan: #22d3ee;
+    --cyan-dim: #164e63;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    padding: 60px 20px 40px;
+    position: relative;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+  .header h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, var(--accent-light), var(--cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .header p {
+    color: var(--text-muted);
+    margin-top: 8px;
+    font-size: 0.95rem;
+  }
+
+  /* Container */
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* Section */
+  .section {
+    margin-bottom: 64px;
+  }
+  .section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--accent-light);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-title::before {
+    content: '';
+    display: block;
+    width: 3px;
+    height: 18px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+
+  /* Flow */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+  }
+
+  .flow-connector {
+    display: flex;
+    justify-content: center;
+    padding: 8px 0;
+    position: relative;
+  }
+  .flow-connector .line {
+    width: 2px;
+    height: 32px;
+    background: linear-gradient(180deg, var(--accent) 0%, var(--border) 100%);
+    position: relative;
+  }
+  .flow-connector .line::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid var(--border);
+  }
+  .flow-connector .label {
+    position: absolute;
+    left: calc(50% + 16px);
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+    letter-spacing: 0.04em;
+  }
+
+  /* Card */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    transition: all 0.25s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .card:hover {
+    border-color: var(--border-accent);
+    background: var(--surface-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.08);
+  }
+  .card-tag {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-bottom: 12px;
+  }
+  .card-tag.caller { background: var(--green-dim); color: var(--green); }
+  .card-tag.executor { background: var(--blue-dim); color: var(--blue); }
+  .card-tag.agent { background: var(--purple-dim); color: var(--purple); }
+  .card-tag.output { background: var(--orange-dim); color: var(--orange); }
+
+  .card h3 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .card p {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+
+  .card .file-path {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 6px;
+  }
+
+  /* Agents grid */
+  .agents-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 12px;
+  }
+  .agent-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    transition: all 0.25s ease;
+    cursor: default;
+    position: relative;
+  }
+  .agent-card:hover {
+    border-color: var(--purple);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(167, 139, 250, 0.1);
+  }
+  .agent-card .icon {
+    font-size: 1.4rem;
+    margin-bottom: 6px;
+  }
+  .agent-card h4 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .agent-card p {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+  }
+  .agent-card .badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 0.6rem;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: var(--purple-dim);
+    color: var(--purple);
+    font-weight: 600;
+  }
+
+  .parallel-label {
+    text-align: center;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  /* Synthesizer */
+  .synthesizer-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    transition: all 0.25s ease;
+  }
+  .synthesizer-card:hover {
+    border-color: var(--cyan);
+    box-shadow: 0 6px 24px rgba(34, 211, 238, 0.08);
+  }
+
+  /* Prompt composition */
+  .prompt-composition {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .prompt-layer {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    position: relative;
+    transition: all 0.25s ease;
+    cursor: pointer;
+  }
+  .prompt-layer:hover {
+    transform: translateX(4px);
+  }
+  .prompt-layer.required {
+    border-color: var(--accent);
+    background: rgba(99, 102, 241, 0.04);
+  }
+  .prompt-layer.required:hover { background: rgba(99, 102, 241, 0.08); }
+  .prompt-layer.optional {
+    border-color: var(--border);
+    background: var(--surface);
+  }
+  .prompt-layer.optional:hover { background: var(--surface-hover); }
+
+  .prompt-layer .layer-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .prompt-layer .layer-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .prompt-layer.required .layer-num {
+    background: var(--accent);
+    color: white;
+  }
+  .prompt-layer.optional .layer-num {
+    background: var(--border);
+    color: var(--text-muted);
+  }
+  .prompt-layer .layer-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  .prompt-layer .layer-badge {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 600;
+    margin-left: auto;
+  }
+  .prompt-layer.required .layer-badge {
+    background: var(--accent);
+    color: white;
+  }
+  .prompt-layer.optional .layer-badge {
+    background: var(--border);
+    color: var(--text-muted);
+  }
+  .prompt-layer .layer-desc {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-left: 34px;
+  }
+  .prompt-layer .layer-files {
+    margin-left: 34px;
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .prompt-layer .file-chip {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.7rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    transition: all 0.2s;
+  }
+  .prompt-layer:hover .file-chip {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+
+  .plus-sign {
+    text-align: center;
+    font-size: 1.2rem;
+    color: var(--text-dim);
+    padding: 6px 0;
+    font-weight: 300;
+  }
+
+  /* Customization table */
+  .config-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .config-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    transition: all 0.25s ease;
+  }
+  .config-item:hover {
+    border-color: var(--accent);
+    background: var(--surface-hover);
+  }
+  .config-item .config-key {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    color: var(--accent-light);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .config-item .config-desc {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .config-item .config-example {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.72rem;
+    color: var(--green);
+    background: rgba(52, 211, 153, 0.06);
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(52, 211, 153, 0.1);
+  }
+
+  /* Caller example */
+  .code-block {
+    background: #0d0d14;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.78rem;
+    line-height: 1.8;
+    overflow-x: auto;
+    position: relative;
+  }
+  .code-block .comment { color: var(--text-dim); }
+  .code-block .key { color: var(--accent-light); }
+  .code-block .value { color: var(--green); }
+  .code-block .label-tab {
+    position: absolute;
+    top: 0;
+    right: 0;
+    font-size: 0.65rem;
+    padding: 4px 10px;
+    background: var(--border);
+    color: var(--text-muted);
+    border-radius: 0 9px 0 6px;
+    font-family: 'Inter', sans-serif;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  /* Output section */
+  .output-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .output-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    transition: all 0.25s ease;
+  }
+  .output-card:hover {
+    border-color: var(--orange);
+    background: var(--surface-hover);
+  }
+  .output-card h4 {
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+  }
+  .output-card p {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+  .output-card .api-call {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.7rem;
+    color: var(--orange);
+    margin-top: 8px;
+  }
+
+  /* Error handling */
+  .error-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .error-table th {
+    text-align: left;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .error-table td {
+    padding: 12px;
+    font-size: 0.82rem;
+    border-bottom: 1px solid rgba(42, 42, 58, 0.5);
+    vertical-align: top;
+  }
+  .error-table tr:hover td {
+    background: var(--surface-hover);
+  }
+  .error-table .scenario { color: var(--text); font-weight: 500; }
+  .error-table .behavior { color: var(--text-muted); }
+  .error-table .icon-cell { text-align: center; font-size: 1rem; }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .agents-grid { grid-template-columns: 1fr; }
+    .config-grid { grid-template-columns: 1fr; }
+    .output-grid { grid-template-columns: 1fr; }
+    .header h1 { font-size: 1.6rem; }
+  }
+
+  /* Animations */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .section {
+    animation: fadeInUp 0.5s ease both;
+  }
+  .section:nth-child(2) { animation-delay: 0.1s; }
+  .section:nth-child(3) { animation-delay: 0.2s; }
+  .section:nth-child(4) { animation-delay: 0.3s; }
+  .section:nth-child(5) { animation-delay: 0.4s; }
+  .section:nth-child(6) { animation-delay: 0.5s; }
+
+  /* Pulse dot */
+  .pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    display: inline-block;
+    animation: pulse 2s ease-in-out infinite;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4); }
+    50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(52, 211, 153, 0); }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Senior Reviewer</h1>
+  <p>AI Multi-Agent Code Review System &mdash; Architecture Overview</p>
+</div>
+
+<div class="container">
+
+  <!-- =========================================== -->
+  <!-- SECTION 1: 전체 흐름 -->
+  <!-- =========================================== -->
+  <div class="section">
+    <div class="section-title">End-to-End Flow</div>
+
+    <!-- Step 1: Caller -->
+    <div class="card">
+      <span class="card-tag caller">Caller &middot; Target Repo</span>
+      <h3>PR 이벤트 트리거</h3>
+      <p>대상 레포에서 PR이 열리거나 업데이트되면, caller workflow가 Senior Reviewer를 호출합니다.<br>
+         <code>team</code>, <code>stacks</code>를 지정하여 리뷰 기준을 커스터마이징합니다.</p>
+      <div class="file-path">.github/workflows/senior-review.yml</div>
+    </div>
+
+    <div class="flow-connector">
+      <div class="line"></div>
+      <span class="label">workflow_call (reusable workflow)</span>
+    </div>
+
+    <!-- Step 2: Executor -->
+    <div class="card">
+      <span class="card-tag executor">Executor &middot; Senior Reviewer Repo</span>
+      <h3>review-executor.yml</h3>
+      <p>senior-reviewer 레포를 체크아웃하고, 빌드 후 <code>node dist/index.js</code>를 실행합니다.<br>
+         <code>team</code>, <code>stacks</code>는 환경변수(<code>TEAM</code>, <code>STACKS</code>)로 전달됩니다.</p>
+      <div class="file-path">.github/workflows/review-executor.yml → src/index.ts</div>
+    </div>
+
+    <div class="flow-connector">
+      <div class="line"></div>
+      <span class="label">PR diff 파싱 + promptContext 생성</span>
+    </div>
+
+    <!-- Step 3: Agents -->
+    <div class="card" style="padding-bottom: 20px;">
+      <span class="card-tag agent">Multi-Agent Review</span>
+      <h3>에이전트 병렬 실행</h3>
+      <p>3개의 전문 에이전트가 동시에 PR diff를 분석합니다. 각 에이전트는 <strong>동적 합성된 프롬프트</strong>로 구동됩니다.</p>
+      <div class="parallel-label" style="margin-top: 16px;"><span class="pulse-dot"></span>Promise.allSettled &mdash; 병렬 실행</div>
+      <div class="agents-grid">
+        <div class="agent-card">
+          <div class="badge">Agent 1</div>
+          <div class="icon">&#128027;</div>
+          <h4>Bug Detector</h4>
+          <p>로직 오류, null 접근, 비동기 버그, 에지 케이스</p>
+        </div>
+        <div class="agent-card">
+          <div class="badge">Agent 2</div>
+          <div class="icon">&#128274;</div>
+          <h4>Security Checker</h4>
+          <p>XSS, 인젝션, 인증/인가, 민감 데이터 노출</p>
+        </div>
+        <div class="agent-card">
+          <div class="badge">Agent 3</div>
+          <div class="icon">&#9889;</div>
+          <h4>Code Quality</h4>
+          <p>구조, 성능, TypeScript, 에러 처리, 유지보수성</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-connector">
+      <div class="line"></div>
+      <span class="label">모든 findings 취합</span>
+    </div>
+
+    <!-- Step 4: Synthesizer -->
+    <div class="synthesizer-card">
+      <span class="card-tag agent">Synthesizer</span>
+      <h3 style="margin-top: 8px;">검증 &amp; 종합</h3>
+      <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 6px;">
+        오탐 제거 &rarr; 중복 병합 &rarr; 심각도 조정 &rarr; nitpick 필터링 (최대 3개)
+      </p>
+    </div>
+
+    <div class="flow-connector">
+      <div class="line"></div>
+      <span class="label">최종 findings</span>
+    </div>
+
+    <!-- Step 5: Output -->
+    <div class="card">
+      <span class="card-tag output">Output</span>
+      <h3>리뷰 게시</h3>
+      <div class="output-grid" style="margin-top: 12px;">
+        <div class="output-card">
+          <h4>요약 코멘트</h4>
+          <p>PR 전체 요약 + 텍스트 findings</p>
+          <div class="api-call">issues.createComment &mdash; 1회</div>
+        </div>
+        <div class="output-card">
+          <h4>인라인 코멘트</h4>
+          <p>코드 줄에 직접 달리는 리뷰</p>
+          <div class="api-call">pulls.createReview &mdash; 배치 (알림 1개)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================== -->
+  <!-- SECTION 2: 프롬프트 합성 -->
+  <!-- =========================================== -->
+  <div class="section">
+    <div class="section-title">Prompt Composition</div>
+    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">
+      각 에이전트의 system prompt는 3개 레이어를 <code>---</code> 구분자로 연결하여 동적 합성됩니다.
+    </p>
+
+    <div class="prompt-composition">
+      <div class="prompt-layer required">
+        <div class="layer-header">
+          <div class="layer-num">1</div>
+          <span class="layer-title">Agent 기본 프롬프트</span>
+          <span class="layer-badge">필수</span>
+        </div>
+        <div class="layer-desc">에이전트의 역할과 범용 규칙. FE/BE 무관하게 적용됩니다.</div>
+        <div class="layer-files">
+          <span class="file-chip">agents/bug-detector.md</span>
+          <span class="file-chip">agents/security-checker.md</span>
+          <span class="file-chip">agents/code-quality.md</span>
+          <span class="file-chip">agents/synthesizer.md</span>
+        </div>
+      </div>
+
+      <div class="plus-sign">+</div>
+
+      <div class="prompt-layer optional">
+        <div class="layer-header">
+          <div class="layer-num">2</div>
+          <span class="layer-title">Team 프롬프트</span>
+          <span class="layer-badge">선택</span>
+        </div>
+        <div class="layer-desc">팀 공통 코딩 규칙. 없으면 경고 로그 후 스킵합니다.</div>
+        <div class="layer-files">
+          <span class="file-chip">teams/frontend.md</span>
+          <span class="file-chip" style="opacity:0.4; border-style:dashed;">teams/backend.md (향후)</span>
+        </div>
+      </div>
+
+      <div class="plus-sign">+</div>
+
+      <div class="prompt-layer optional">
+        <div class="layer-header">
+          <div class="layer-num">3</div>
+          <span class="layer-title">Stack 프롬프트 (복수 가능)</span>
+          <span class="layer-badge">선택</span>
+        </div>
+        <div class="layer-desc">기술 스택별 전문 규칙. 쉼표로 여러 개 지정할 수 있습니다.</div>
+        <div class="layer-files">
+          <span class="file-chip">stacks/nextjs-app-router.md</span>
+          <span class="file-chip">stacks/react-performance.md</span>
+          <span class="file-chip">stacks/tanstack-query.md</span>
+          <span class="file-chip">stacks/tailwindcss.md</span>
+          <span class="file-chip">stacks/turborepo.md</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================== -->
+  <!-- SECTION 3: 커스터마이징 -->
+  <!-- =========================================== -->
+  <div class="section">
+    <div class="section-title">Customization</div>
+    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">
+      대상 레포의 caller workflow에서 아래 값들을 설정합니다.
+    </p>
+
+    <div class="config-grid">
+      <div class="config-item">
+        <div class="config-key">team</div>
+        <div class="config-desc">팀 식별자 &mdash; prompts/teams/{team}.md 로드</div>
+        <div class="config-example">"frontend" | "backend"</div>
+      </div>
+      <div class="config-item">
+        <div class="config-key">stacks</div>
+        <div class="config-desc">기술 스택 (쉼표 구분) &mdash; prompts/stacks/{stack}.md 로드</div>
+        <div class="config-example">"nextjs-app-router,tanstack-query,tailwindcss"</div>
+      </div>
+      <div class="config-item">
+        <div class="config-key">exclude_patterns</div>
+        <div class="config-desc">리뷰 제외 파일 패턴 (쉼표 구분)</div>
+        <div class="config-example">"*.test.ts,*.stories.tsx,pnpm-lock.yaml"</div>
+      </div>
+      <div class="config-item">
+        <div class="config-key">review_model</div>
+        <div class="config-desc">AI 모델 오버라이드</div>
+        <div class="config-example">"auto" | "claude-sonnet-4-6" | "claude-opus-4-6"</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================== -->
+  <!-- SECTION 4: Caller 예시 -->
+  <!-- =========================================== -->
+  <div class="section">
+    <div class="section-title">Usage Example</div>
+    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">
+      대상 레포에 이 파일 하나만 추가하면 됩니다.
+    </p>
+
+    <div class="code-block">
+      <span class="label-tab">.github/workflows/senior-review.yml</span>
+<span class="comment"># FE 레포 예시</span>
+<span class="key">name</span>: <span class="value">Senior Code Review</span>
+
+<span class="key">on</span>:
+  <span class="key">pull_request</span>:
+    <span class="key">types</span>: [<span class="value">opened, synchronize, ready_for_review</span>]
+
+<span class="key">jobs</span>:
+  <span class="key">review</span>:
+    <span class="key">if</span>: <span class="value">github.event.pull_request.draft == false</span>
+    <span class="key">uses</span>: <span class="value">aptimizer-co/fe-senior-reviewer/.github/workflows/review-executor.yml@main</span>
+    <span class="key">with</span>:
+      <span class="key">team</span>: <span class="value">"frontend"</span>
+      <span class="key">stacks</span>: <span class="value">"nextjs-app-router,react-performance,tailwindcss,tanstack-query"</span>
+      <span class="key">exclude_patterns</span>: <span class="value">"*.test.ts,*.test.tsx,*.stories.tsx,pnpm-lock.yaml,*.md"</span>
+    <span class="key">secrets</span>:
+      <span class="key">ANTHROPIC_API_KEY</span>: <span class="value">${{ secrets.ANTHROPIC_API_KEY }}</span>
+      <span class="key">REVIEWER_TOKEN</span>: <span class="value">${{ secrets.REVIEWER_TOKEN }}</span>
+
+<span class="comment"># BE 레포 예시 (향후)</span>
+<span class="comment">#   team: "backend"</span>
+<span class="comment">#   stacks: "nestjs,prisma,postgresql"</span>
+    </div>
+  </div>
+
+  <!-- =========================================== -->
+  <!-- SECTION 5: 에러 핸들링 -->
+  <!-- =========================================== -->
+  <div class="section">
+    <div class="section-title">Error Handling</div>
+
+    <table class="error-table">
+      <thead>
+        <tr>
+          <th style="width: 36px;"></th>
+          <th>시나리오</th>
+          <th>동작</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="icon-cell">&#128308;</td>
+          <td class="scenario">agents/*.md 파일 없음</td>
+          <td class="behavior">에러 발생 &mdash; 리뷰 중단</td>
+        </tr>
+        <tr>
+          <td class="icon-cell">&#128992;</td>
+          <td class="scenario">teams/*.md 파일 없음</td>
+          <td class="behavior">경고 로그 &rarr; 해당 프롬프트 없이 진행</td>
+        </tr>
+        <tr>
+          <td class="icon-cell">&#128992;</td>
+          <td class="scenario">stacks/*.md 파일 없음</td>
+          <td class="behavior">경고 로그 &rarr; 해당 프롬프트 없이 진행</td>
+        </tr>
+        <tr>
+          <td class="icon-cell">&#128992;</td>
+          <td class="scenario">에이전트 1개 실패</td>
+          <td class="behavior">Promise.allSettled &mdash; 나머지 결과로 계속 진행</td>
+        </tr>
+        <tr>
+          <td class="icon-cell">&#128994;</td>
+          <td class="scenario">인라인 코멘트 실패</td>
+          <td class="behavior">전체 findings를 텍스트 요약 코멘트에 포함</td>
+        </tr>
+        <tr>
+          <td class="icon-cell">&#128994;</td>
+          <td class="scenario">team/stacks 미지정</td>
+          <td class="behavior">에이전트 기본 프롬프트(범용)만으로 리뷰</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<div class="footer">
+  Senior Reviewer &mdash; aptimizer-co/fe-senior-reviewer
+</div>
+
+</body>
+</html>

@@ -1,4 +1,5 @@
 import { loadConfig } from "./config/index.js";
+import type { PromptContext } from "./agents/base-agent.js";
 import { getOctokit } from "./github/client.js";
 import { fetchPRContext } from "./github/pr-context.js";
 import { postReview } from "./github/review-poster.js";
@@ -16,6 +17,8 @@ async function main() {
     pr: config.prNumber,
     service: config.serviceName,
     modelOverride: config.reviewModel,
+    team: config.team ?? "(없음)",
+    stacks: config.stacks.length > 0 ? config.stacks.join(", ") : "(없음)",
   });
 
   // Initialize GitHub client
@@ -45,8 +48,14 @@ async function main() {
     return;
   }
 
+  // Build prompt context
+  const promptContext: PromptContext = {
+    team: config.team,
+    stacks: config.stacks,
+  };
+
   // Run multi-agent review
-  const result = await orchestrateReview(prContext, config.reviewModel);
+  const result = await orchestrateReview(prContext, config.reviewModel, promptContext);
 
   // Post review to GitHub PR
   logger.info("리뷰 결과를 PR에 게시하는 중...");

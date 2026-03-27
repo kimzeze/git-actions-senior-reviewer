@@ -18,6 +18,16 @@ on:
         required: false
         type: string
         default: ""
+      team:
+        description: "팀 식별자 (예: frontend, backend) — prompts/teams/{team}.md 로드"
+        required: false
+        type: string
+        default: ""
+      stacks:
+        description: "기술 스택 (콤마 구분, 예: nextjs-app-router,tailwindcss) — prompts/stacks/{stack}.md 로드"
+        required: false
+        type: string
+        default: ""
     secrets:
       ANTHROPIC_API_KEY:
         required: true
@@ -81,5 +91,7 @@ jobs:
           SERVICE_NAME: ${{ inputs.service_name }}
           REVIEW_MODEL: ${{ inputs.review_model }}
           EXCLUDE_PATTERNS: ${{ inputs.exclude_patterns }}
+          TEAM: ${{ inputs.team }}
+          STACKS: ${{ inputs.stacks }}
           TARGET_REPO_PATH: ${{ github.workspace }}/target
         run: node dist/index.js

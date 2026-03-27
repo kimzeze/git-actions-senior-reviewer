@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import type {
   AgentFinding,
@@ -8,6 +10,8 @@ import type {
 import { logger } from "../utils/logger.js";
 import { REPORT_FINDINGS_TOOL, type ReviewAgent } from "./types.js";
 
+const PROMPTS_DIR = path.resolve(process.cwd(), "prompts");
+
 let anthropicClient: Anthropic | null = null;
 
 function getClient(apiKey: string): Anthropic {
@@ -17,9 +21,85 @@ function getClient(apiKey: string): Anthropic {
   return anthropicClient;
 }
 
+export interface PromptContext {
+  team?: string;
+  stacks: string[];
+}
+
+/**
+ * prompts/ 디렉토리에서 md 파일을 읽어 반환한다.
+ * 파일이 없으면 null을 반환한다.
+ */
+function loadPromptFile(relativePath: string): string | null {
+  const fullPath = path.join(PROMPTS_DIR, relativePath);
+  try {
+    return fs.readFileSync(fullPath, "utf-8");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 에이전트 이름 + team + stacks 기반으로 시스템 프롬프트를 합성한다.
+ *
+ * 합성 순서:
+ * 1. agents/{agentName}.md (필수)
+ * 2. teams/{team}.md (선택)
+ * 3. stacks/{stack}.md × N (선택)
+ */
+export function buildSystemPrompt(
+  agentName: string,
+  promptContext: PromptContext,
+): string {
+  const parts: string[] = [];
+
+  // 1. Agent 기본 프롬프트 (필수)
+  const agentPrompt = loadPromptFile(`agents/${agentName}.md`);
+  if (!agentPrompt) {
+    throw new Error(
+      `에이전트 프롬프트 파일을 찾을 수 없습니다: prompts/agents/${agentName}.md`,
+    );
+  }
+  parts.push(agentPrompt);
+
+  // 2. Team 프롬프트 (선택)
+  if (promptContext.team) {
+    const teamPrompt = loadPromptFile(`teams/${promptContext.team}.md`);
+    if (teamPrompt) {
+      parts.push(teamPrompt);
+    } else {
+      logger.warn(
+        `팀 프롬프트 파일을 찾을 수 없습니다: prompts/teams/${promptContext.team}.md — 해당 프롬프트 없이 진행합니다.`,
+      );
+    }
+  }
+
+  // 3. Stack 프롬프트 (선택, 복수)
+  for (const stack of promptContext.stacks) {
+    const stackPrompt = loadPromptFile(`stacks/${stack}.md`);
+    if (stackPrompt) {
+      parts.push(stackPrompt);
+    } else {
+      logger.warn(
+        `스택 프롬프트 파일을 찾을 수 없습니다: prompts/stacks/${stack}.md — 해당 프롬프트 없이 진행합니다.`,
+      );
+    }
+  }
+
+  return parts.join("\n\n---\n\n");
+}
+
 export abstract class BaseAgent implements ReviewAgent {
   abstract name: string;
-  protected abstract systemPrompt: string;
+  private promptContext: PromptContext;
+
+  constructor(promptContext: PromptContext = { stacks: [] }) {
+    this.promptContext = promptContext;
+  }
+
+  protected getSystemPrompt(): string {
+    return buildSystemPrompt(this.name, this.promptContext);
+  }
 
   protected buildUserPrompt(context: PRContext): string {
     const fileList = context.files
@@ -58,12 +138,13 @@ ${diffContent}`;
 
     logger.info(`[${this.name}] 리뷰 시작`, { model, files: context.changedFiles });
 
+    const systemPrompt = this.getSystemPrompt();
     const userPrompt = this.buildUserPrompt(context);
 
     const response = await client.messages.create({
       model,
       max_tokens: 8192,
-      system: this.systemPrompt,
+      system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
       tools: [REPORT_FINDINGS_TOOL],
       tool_choice: { type: "tool", name: "report_findings" },

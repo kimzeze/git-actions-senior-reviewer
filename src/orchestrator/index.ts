@@ -4,6 +4,7 @@ import type {
   PRContext,
   ReviewResult,
 } from "../config/types.js";
+import type { PromptContext } from "../agents/base-agent.js";
 import { BugDetectorAgent } from "../agents/bug-detector.js";
 import { SecurityCheckerAgent } from "../agents/security-checker.js";
 import { CodeQualityAgent } from "../agents/code-quality.js";
@@ -14,6 +15,7 @@ import { determineReviewScale } from "./scaler.js";
 export async function orchestrateReview(
   context: PRContext,
   modelOverride: string,
+  promptContext: PromptContext,
 ): Promise<ReviewResult> {
   const startTime = Date.now();
   const scale = determineReviewScale(context, modelOverride);
@@ -22,21 +24,23 @@ export async function orchestrateReview(
     mode: scale.mode,
     pr: context.number,
     title: context.title,
+    team: promptContext.team ?? "(없음)",
+    stacks: promptContext.stacks.length > 0 ? promptContext.stacks.join(", ") : "(없음)",
   });
 
   let agentResults: AgentResult[];
 
   if (scale.mode === "lightweight") {
     // Lightweight: 버그 탐색 에이전트 하나만 실행
-    const bugAgent = new BugDetectorAgent();
+    const bugAgent = new BugDetectorAgent(promptContext);
     const result = await bugAgent.review(context, scale.agentModel);
     agentResults = [result];
   } else {
     // Standard/Full: 3개 에이전트 병렬 실행
     const agents = [
-      new BugDetectorAgent(),
-      new SecurityCheckerAgent(),
-      new CodeQualityAgent(),
+      new BugDetectorAgent(promptContext),
+      new SecurityCheckerAgent(promptContext),
+      new CodeQualityAgent(promptContext),
     ];
 
     const results = await Promise.allSettled(
@@ -71,7 +75,7 @@ export async function orchestrateReview(
   let finalFindings: AgentFinding[];
 
   if (allFindings.length > 0 && scale.mode !== "lightweight") {
-    const synthesizer = new Synthesizer();
+    const synthesizer = new Synthesizer(promptContext);
     const synthResult = await synthesizer.synthesize(
       allFindings,
       context,
