@@ -16,7 +16,7 @@ export async function sendSlackNotification(
   repoName: string,
 ): Promise<void> {
   const prUrl = `https://github.com/${repoOwner}/${repoName}/pull/${prContext.number}`;
-  const { findings, mode, totalDurationMs } = result;
+  const { findings } = result;
 
   const bySeverity = {
     critical: findings.filter((f) => f.severity === "critical").length,
@@ -44,24 +44,13 @@ export async function sendSlackNotification(
     .map((f) => `\u2022 \`${f.file}:${f.line}\` ${f.title}`)
     .join("\n");
 
-  const durationSec = (totalDurationMs / 1000).toFixed(0);
-
   const blocks: Array<Record<string, unknown>> = [
     {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*\u{1F50D} Senior Reviewer \u2014 \uCF54\uB4DC \uB9AC\uBDF0 \uC644\uB8CC*`,
+        text: `*\u{1F50D} <${prUrl}|#${prContext.number} ${prContext.title}>* \uB9AC\uBDF0 \uC644\uB8CC`,
       },
-    },
-    {
-      type: "section",
-      fields: [
-        { type: "mrkdwn", text: `*PR:* <${prUrl}|#${prContext.number} ${prContext.title}>` },
-        { type: "mrkdwn", text: `*\uC791\uC131\uC790:* ${prContext.author}` },
-        { type: "mrkdwn", text: `*\uBAA8\uB4DC:* ${mode}` },
-        { type: "mrkdwn", text: `*\uC18C\uC694\uC2DC\uAC04:* ${durationSec}\uCD08` },
-      ],
     },
   ];
 
@@ -69,13 +58,11 @@ export async function sendSlackNotification(
     blocks.push({
       type: "section",
       text: { type: "mrkdwn", text: "\u2705 \uBC1C\uACAC\uC0AC\uD56D \uC5C6\uC74C \u2014 \uD074\uB9B0 PR\uC785\uB2C8\uB2E4!" },
-      fields: [],
     });
   } else {
     blocks.push({
       type: "section",
-      text: { type: "mrkdwn", text: `*\uBC1C\uACAC\uC0AC\uD56D:* ${findings.length}\uAC1C\n${severitySummary}` },
-      fields: [],
+      text: { type: "mrkdwn", text: `${severitySummary} \u2014 \uCD1D ${findings.length}\uAC74` },
     });
 
     if (criticalItems) {
@@ -83,11 +70,17 @@ export async function sendSlackNotification(
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `*${SEVERITY_EMOJI["critical"]} \uD06C\uB9AC\uD2F0\uCEEC \uC774\uC288:*\n${criticalItems}`,
+          text: `*${SEVERITY_EMOJI["critical"]} \uD06C\uB9AC\uD2F0\uCEEC:*\n${criticalItems}`,
         },
-        fields: [],
       });
     }
+
+    blocks.push({
+      type: "context",
+      elements: [
+        { type: "mrkdwn", text: `<${prUrl}|PR\uC5D0\uC11C \uC804\uCCB4 \uB9AC\uBDF0 \uD655\uC778>` },
+      ],
+    });
   }
 
   const payload = {

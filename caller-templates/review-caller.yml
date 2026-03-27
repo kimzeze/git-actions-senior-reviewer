@@ -11,7 +11,7 @@ jobs:
   review:
     # draft PR은 건너뜀
     if: github.event.pull_request.draft == false
-    uses: aptimizer-co/fe-senior-reviewer/.github/workflows/review-executor.yml@main
+    uses: aptimizer-co/senior-reviewer/.github/workflows/review-executor.yml@main
     with:
       service_name: "frontend-aptimizer"
       review_model: "auto"

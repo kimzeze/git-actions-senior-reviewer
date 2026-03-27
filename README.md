@@ -4,6 +4,8 @@ PR이 열리면 멀티 에이전트 팀이 병렬로 코드를 리뷰하고, 검
 
 > **새 레포에 적용하려면?** [`docs/SETUP_GUIDE.md`](docs/SETUP_GUIDE.md)를 참고하세요. AI 어시스턴트에게 이 파일을 제공하면 세팅을 도와줍니다.
 >
+> **프롬프트 추가/수정하려면?** [`docs/PROMPT_GUIDE.md`](docs/PROMPT_GUIDE.md)를 참고하세요.
+>
 > **시스템 아키텍처 시각화:** [`docs/architecture.html`](docs/architecture.html)을 브라우저에서 열어보세요.
 
 ---
@@ -81,7 +83,7 @@ LINE NEXT의 **Caller-Executor 패턴**을 채택했습니다.
                        │ workflow_call
                        ▼
 ┌─────────────────────────────────────────────────┐
-│  fe-senior-reviewer (이 레포)                     │
+│  senior-reviewer (이 레포)                     │
 │                                                   │
 │  .github/workflows/review-executor.yml (Executor)│
 │  → 리뷰 로직 전체를 실행                            │
@@ -265,7 +267,7 @@ if (!session) {
 
 ### 1단계: 이 레포를 GitHub에 올리기
 
-이미 `aptimizer-co/fe-senior-reviewer`에 올라가 있습니다.
+이미 `aptimizer-co/senior-reviewer`에 올라가 있습니다.
 
 ### 2단계: Organization Secrets 설정
 
@@ -274,7 +276,7 @@ GitHub Organization → Settings → Secrets and variables → Actions에서:
 | 시크릿 | 필수 | 설명 |
 |--------|------|------|
 | `ANTHROPIC_API_KEY` | **필수** | Anthropic API 키 ([console.anthropic.com](https://console.anthropic.com)) |
-| `REVIEWER_TOKEN` | **필수** | `fe-senior-reviewer` private 레포 checkout용 PAT (Contents Read-only) |
+| `REVIEWER_TOKEN` | **필수** | `senior-reviewer` private 레포 checkout용 PAT (Contents Read-only) |
 | `SLACK_WEBHOOK_URL` | 선택 | Slack Incoming Webhook URL |
 
 > **중요:** Organization-level secret으로 설정해야 모든 레포에서 사용할 수 있습니다.
@@ -295,7 +297,7 @@ on:
 jobs:
   review:
     if: github.event.pull_request.draft == false
-    uses: aptimizer-co/fe-senior-reviewer/.github/workflows/review-executor.yml@main
+    uses: aptimizer-co/senior-reviewer/.github/workflows/review-executor.yml@main
     with:
       service_name: "frontend-aptimizer"
       review_model: "auto"
@@ -333,7 +335,7 @@ Caller workflow에서 Executor에 전달하는 설정입니다.
 | Secret | 필수 | 설명 |
 |--------|------|------|
 | `ANTHROPIC_API_KEY` | **필수** | Anthropic API 키 |
-| `REVIEWER_TOKEN` | **필수** | `fe-senior-reviewer` checkout용 PAT (Fine-grained, Contents Read-only) |
+| `REVIEWER_TOKEN` | **필수** | `senior-reviewer` checkout용 PAT (Fine-grained, Contents Read-only) |
 | `SLACK_WEBHOOK_URL` | 선택 | Slack 알림용 Incoming Webhook URL |
 
 ### 환경변수 (로컬 실행 시)
@@ -380,7 +382,7 @@ Claude API 토큰 사용량 기준 (Sonnet 기준: input $3/M, output $15/M):
 ## 프로젝트 구조
 
 ```
-fe-senior-reviewer/
+senior-reviewer/
 ├── .github/
 │   └── workflows/
 │       └── review-executor.yml          # Reusable workflow (Executor)
@@ -499,9 +501,9 @@ pnpm build && pnpm start
 >
 > 아래 항목은 organization 관리자가 이미 설정해둔 상태입니다. 새 레포를 추가할 때는 다시 할 필요 없습니다.
 >
-> - `fe-senior-reviewer` 레포 → Settings → Actions → General → Access → **"Accessible from repositories in the 'aptimizer-co' organization"** 활성화
+> - `senior-reviewer` 레포 → Settings → Actions → General → Access → **"Accessible from repositories in the 'aptimizer-co' organization"** 활성화
 > - Organization-level secrets 등록: `ANTHROPIC_API_KEY`, `REVIEWER_TOKEN`
-> - `REVIEWER_TOKEN`은 `fe-senior-reviewer` 레포의 Contents Read-only 권한이 있는 Fine-grained PAT
+> - `REVIEWER_TOKEN`은 `senior-reviewer` 레포의 Contents Read-only 권한이 있는 Fine-grained PAT
 
 ---
 
@@ -531,7 +533,7 @@ on:
 jobs:
   review:
     if: github.event.pull_request.draft == false
-    uses: aptimizer-co/fe-senior-reviewer/.github/workflows/review-executor.yml@main
+    uses: aptimizer-co/senior-reviewer/.github/workflows/review-executor.yml@main
     with:
       service_name: "your-service-name"    # 레포 식별자 (자유롭게 지정)
       review_model: "auto"                 # auto, claude-sonnet-4-6, claude-opus-4-6
@@ -573,7 +575,7 @@ main 브랜치에 Caller workflow가 머지된 후, 새로운 PR을 열면 `Seni
 
 - **Draft PR인지 확인**: Draft PR은 건너뜁니다. Ready for review로 변경하면 트리거됩니다.
 - **Workflow permissions 확인**: 레포 Settings → Actions → General → Workflow permissions에서 "Read and write permissions" 활성화가 필요합니다.
-- **Reusable workflow 접근 권한**: `fe-senior-reviewer` 레포가 private이므로, 해당 레포의 Settings → Actions → General → Access에서 **"Accessible from repositories in the 'aptimizer-co' organization"**이 활성화되어 있어야 합니다. 이 설정이 없으면 `workflow was not found` 에러가 발생합니다.
+- **Reusable workflow 접근 권한**: `senior-reviewer` 레포가 private이므로, 해당 레포의 Settings → Actions → General → Access에서 **"Accessible from repositories in the 'aptimizer-co' organization"**이 활성화되어 있어야 합니다. 이 설정이 없으면 `workflow was not found` 에러가 발생합니다.
 
 ### 코멘트가 안 달려요
 
