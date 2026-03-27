@@ -9,7 +9,6 @@ PR이 열리면 멀티 에이전트 팀이 병렬로 코드를 리뷰하고, 검
 >
 > **프롬프트 추가/수정하려면?** [`docs/PROMPT_GUIDE.md`](docs/PROMPT_GUIDE.md)를 참고하세요.
 >
-> **시스템 아키텍처 시각화:** [architecture.html](https://kimzeze.github.io/git-actions-senior-reviewer/architecture.html)에서 바로 확인할 수 있습니다.
 
 ---
 
