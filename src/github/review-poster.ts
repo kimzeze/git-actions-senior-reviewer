@@ -266,7 +266,7 @@ function buildSummaryComment(
     body += `| ${agent.agentName} | ${agent.findings.length} | ${sec}\uCD08 | ${tokens.toLocaleString()} |\n`;
   }
   body += `\n</details>\n\n`;
-  body += `---\n*Powered by [Senior Reviewer](https://github.com/aptimizer-co/senior-reviewer) \u{1F916}*`;
+  body += `---\n*Powered by [Senior Reviewer](https://github.com/kimzeze/git-actions-senior-reviewer) \u{1F916}*`;
 
   return body;
 }

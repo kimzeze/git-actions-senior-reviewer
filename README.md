@@ -6,7 +6,7 @@ PR이 열리면 멀티 에이전트 팀이 병렬로 코드를 리뷰하고, 검
 >
 > **프롬프트 추가/수정하려면?** [`docs/PROMPT_GUIDE.md`](docs/PROMPT_GUIDE.md)를 참고하세요.
 >
-> **시스템 아키텍처 시각화:** [architecture.html](https://aptimizer-co.github.io/senior-reviewer/architecture.html)에서 바로 확인할 수 있습니다.
+> **시스템 아키텍처 시각화:** [architecture.html](https://kimzeze.github.io/git-actions-senior-reviewer/architecture.html)에서 바로 확인할 수 있습니다.
 
 ---
 
@@ -75,7 +75,7 @@ LINE NEXT의 **Caller-Executor 패턴**을 채택했습니다.
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  대상 레포 (frontend-aptimizer 등)                │
+│  대상 레포 (your-app 등)                │
 │                                                   │
 │  .github/workflows/senior-review.yml (Caller)    │
 │  → 15줄 YAML, 시크릿 전달만 담당                    │
@@ -267,7 +267,7 @@ if (!session) {
 
 ### 1단계: 이 레포를 GitHub에 올리기
 
-이미 `aptimizer-co/senior-reviewer`에 올라가 있습니다.
+이미 `your-org/senior-reviewer`에 올라가 있습니다.
 
 ### 2단계: Organization Secrets 설정
 
@@ -285,7 +285,7 @@ GitHub Organization → Settings → Secrets and variables → Actions에서:
 
 ### 3단계: 대상 레포에 Caller Workflow 추가
 
-`frontend-aptimizer` 레포에 `.github/workflows/senior-review.yml` 파일을 생성합니다:
+`your-app` 레포에 `.github/workflows/senior-review.yml` 파일을 생성합니다:
 
 ```yaml
 name: Senior Code Review
@@ -297,9 +297,9 @@ on:
 jobs:
   review:
     if: github.event.pull_request.draft == false
-    uses: aptimizer-co/senior-reviewer/.github/workflows/review-executor.yml@main
+    uses: your-org/senior-reviewer/.github/workflows/review-executor.yml@main
     with:
-      service_name: "frontend-aptimizer"
+      service_name: "your-app"
       review_model: "auto"
       exclude_patterns: "*.test.ts,*.test.tsx,*.stories.tsx,pnpm-lock.yaml,*.md"
       team: "frontend"
@@ -495,13 +495,13 @@ pnpm build && pnpm start
 
 ## 새 레포에 적용하기
 
-같은 organization(`aptimizer-co`) 내 레포에 Senior Reviewer를 적용하는 방법입니다.
+같은 organization(`your-org`) 내 레포에 Senior Reviewer를 적용하는 방법입니다.
 
 > **전제 조건 (최초 1회, 이미 완료됨)**
 >
 > 아래 항목은 organization 관리자가 이미 설정해둔 상태입니다. 새 레포를 추가할 때는 다시 할 필요 없습니다.
 >
-> - `senior-reviewer` 레포 → Settings → Actions → General → Access → **"Accessible from repositories in the 'aptimizer-co' organization"** 활성화
+> - `senior-reviewer` 레포 → Settings → Actions → General → Access → **"Accessible from repositories in the 'your-org' organization"** 활성화
 > - Organization-level secrets 등록: `ANTHROPIC_API_KEY`, `REVIEWER_TOKEN`
 > - `REVIEWER_TOKEN`은 `senior-reviewer` 레포의 Contents Read-only 권한이 있는 Fine-grained PAT
 
@@ -533,7 +533,7 @@ on:
 jobs:
   review:
     if: github.event.pull_request.draft == false
-    uses: aptimizer-co/senior-reviewer/.github/workflows/review-executor.yml@main
+    uses: your-org/senior-reviewer/.github/workflows/review-executor.yml@main
     with:
       service_name: "your-service-name"    # 레포 식별자 (자유롭게 지정)
       review_model: "auto"                 # auto, claude-sonnet-4-6, claude-opus-4-6
@@ -575,7 +575,7 @@ main 브랜치에 Caller workflow가 머지된 후, 새로운 PR을 열면 `Seni
 
 - **Draft PR인지 확인**: Draft PR은 건너뜁니다. Ready for review로 변경하면 트리거됩니다.
 - **Workflow permissions 확인**: 레포 Settings → Actions → General → Workflow permissions에서 "Read and write permissions" 활성화가 필요합니다.
-- **Reusable workflow 접근 권한**: `senior-reviewer` 레포가 private이므로, 해당 레포의 Settings → Actions → General → Access에서 **"Accessible from repositories in the 'aptimizer-co' organization"**이 활성화되어 있어야 합니다. 이 설정이 없으면 `workflow was not found` 에러가 발생합니다.
+- **Reusable workflow 접근 권한**: `senior-reviewer` 레포가 private이므로, 해당 레포의 Settings → Actions → General → Access에서 **"Accessible from repositories in the 'your-org' organization"**이 활성화되어 있어야 합니다. 이 설정이 없으면 `workflow was not found` 에러가 발생합니다.
 
 ### 코멘트가 안 달려요
 
@@ -603,4 +603,4 @@ main 브랜치에 Caller workflow가 머지된 후, 새로운 PR을 열면 `Seni
 
 ## 라이선스
 
-Private — aptimizer-co 내부 사용
+MIT License

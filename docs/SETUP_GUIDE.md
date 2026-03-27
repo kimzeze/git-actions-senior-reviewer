@@ -10,7 +10,7 @@
 Senior Reviewer는 PR이 열리면 AI가 자동으로 코드 리뷰하는 시스템입니다.
 대상 레포에 **caller workflow 파일 하나**만 추가하면 동작합니다.
 
-- 리뷰 로직은 `aptimizer-co/senior-reviewer` 레포에서 중앙 관리됩니다.
+- 리뷰 로직은 `your-org/senior-reviewer` 레포에서 중앙 관리됩니다.
 - 대상 레포는 `team`과 `stacks`를 지정하여 맞춤 리뷰를 받습니다.
 
 ---
@@ -21,7 +21,7 @@ Senior Reviewer는 PR이 열리면 AI가 자동으로 코드 리뷰하는 시스
 
 ### 체크리스트 (Organization 관리자가 최초 1회 설정)
 
-- [ ] `[수동]` `senior-reviewer` 레포 → Settings → Actions → General → Access → **"Accessible from repositories in the 'aptimizer-co' organization"** 활성화
+- [ ] `[수동]` `senior-reviewer` 레포 → Settings → Actions → General → Access → **"Accessible from repositories in the 'your-org' organization"** 활성화
 - [ ] `[수동]` Organization-level secret 등록 완료:
   - `ANTHROPIC_API_KEY` — Anthropic API 키 ([console.anthropic.com](https://console.anthropic.com))
   - `REVIEWER_TOKEN` — `senior-reviewer` 레포의 Contents Read-only 권한이 있는 Fine-grained PAT
@@ -66,7 +66,7 @@ on:
 jobs:
   review:
     if: github.event.pull_request.draft == false
-    uses: aptimizer-co/senior-reviewer/.github/workflows/review-executor.yml@main
+    uses: your-org/senior-reviewer/.github/workflows/review-executor.yml@main
     with:
       service_name: "your-service-name"  # [변경 필요] 레포 식별자
       review_model: "auto"
@@ -135,7 +135,7 @@ stacks: ""
 
 - [ ] `.github/workflows/senior-review.yml` 파일이 올바른 경로에 생성됨
 - [ ] YAML 문법이 유효함
-- [ ] `uses:` 경로가 `aptimizer-co/senior-reviewer/.github/workflows/review-executor.yml@main`과 정확히 일치
+- [ ] `uses:` 경로가 `your-org/senior-reviewer/.github/workflows/review-executor.yml@main`과 정확히 일치
 - [ ] `service_name`이 대상 레포에 맞게 설정됨
 - [ ] `team`과 `stacks`가 대상 레포의 기술 스택과 일치
 - [ ] `exclude_patterns`에 리뷰 불필요한 파일 패턴이 포함됨

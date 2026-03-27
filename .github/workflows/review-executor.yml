@@ -50,7 +50,7 @@ jobs:
       - name: Checkout senior-reviewer
         uses: actions/checkout@v4
         with:
-          repository: aptimizer-co/senior-reviewer
+          repository: your-org/senior-reviewer
           ref: main
           path: reviewer
           token: ${{ secrets.REVIEWER_TOKEN }}
