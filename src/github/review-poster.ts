@@ -30,12 +30,9 @@ export async function postReview(
   result: ReviewResult,
 ): Promise<void> {
   const { findings } = result;
-
-  // Build summary comment
   const summaryBody = buildSummaryComment(result, prContext);
 
   if (findings.length === 0) {
-    // No findings — post a clean summary
     await octokit.rest.issues.createComment({
       owner,
       repo,
@@ -46,70 +43,107 @@ export async function postReview(
     return;
   }
 
-  // Separate inline-eligible findings from summary-only findings
-  const inlineFindings: AgentFinding[] = [];
-  const summaryOnlyFindings: AgentFinding[] = [];
+  // 1. findings를 검증하여 인라인 가능/불가능으로 분류
+  const { valid: inlineFindings, invalid: textOnlyFindings } =
+    validateFindings(findings, prContext);
 
-  for (const finding of findings) {
-    if (isInlineEligible(finding, prContext)) {
-      inlineFindings.push(finding);
-    } else {
-      summaryOnlyFindings.push(finding);
-    }
+  if (textOnlyFindings.length > 0) {
+    logger.warn("인라인 불가 findings (diff 범위 밖 또는 유효하지 않은 줄 번호)", {
+      count: textOnlyFindings.length,
+      details: textOnlyFindings.map((f) => ({ file: f.file, line: f.line })),
+    });
   }
 
-  // Post review with inline comments (max 50 to stay under GitHub limits)
-  const inlineComments = inlineFindings.slice(0, 50).map((f) => ({
-    path: f.file,
-    line: f.line,
-    body: formatInlineComment(f),
-  }));
+  // 2. 인라인 코멘트 시도 (batch — 알림 1개)
+  let inlineSuccess = false;
+  if (inlineFindings.length > 0) {
+    const inlineComments = inlineFindings.slice(0, 50).map((f) => ({
+      path: f.file,
+      line: f.line,
+      body: formatInlineComment(f),
+    }));
 
-  if (inlineComments.length > 0) {
     try {
       await octokit.rest.pulls.createReview({
         owner,
         repo,
         pull_number: prContext.number,
         event: "COMMENT",
-        body: summaryBody,
         comments: inlineComments,
       });
+      inlineSuccess = true;
       logger.info("인라인 리뷰 코멘트 작성 완료", {
-        inline: inlineComments.length,
+        count: inlineComments.length,
       });
     } catch (error) {
-      // Fallback: if createReview fails (line not in diff), post as regular comment
-      logger.warn("인라인 리뷰 실패, 일반 코멘트로 대체", {
+      logger.warn("인라인 리뷰 실패, 요약 코멘트에 포함", {
         error: String(error),
       });
-      await octokit.rest.issues.createComment({
-        owner,
-        repo,
-        issue_number: prContext.number,
-        body: summaryBody + "\n\n" + formatAllFindingsAsText(findings),
-      });
     }
-  } else {
-    await octokit.rest.issues.createComment({
-      owner,
-      repo,
-      issue_number: prContext.number,
-      body: summaryBody + "\n\n" + formatAllFindingsAsText(summaryOnlyFindings),
-    });
   }
+
+  // 3. 요약 코멘트 게시 (항상 1회)
+  //    - 인라인 성공 시: 요약 + 인라인 불가 findings만
+  //    - 인라인 실패 시: 요약 + 모든 findings
+  const textFindings = inlineSuccess ? textOnlyFindings : findings;
+  const body =
+    textFindings.length > 0
+      ? summaryBody + "\n\n" + formatAllFindingsAsText(textFindings)
+      : summaryBody;
+
+  await octokit.rest.issues.createComment({
+    owner,
+    repo,
+    issue_number: prContext.number,
+    body,
+  });
+
+  logger.info("요약 코멘트 작성 완료", {
+    inlineSuccess,
+    inlineCount: inlineFindings.length,
+    textCount: textFindings.length,
+  });
 }
 
-function isInlineEligible(finding: AgentFinding, context: PRContext): boolean {
-  const file = context.parsedDiff.find((f) => f.filename === finding.file);
-  if (!file) return false;
+/**
+ * findings를 검증하여 인라인 가능(valid) / 불가능(invalid)으로 분류한다.
+ * - file이 diff에 존재하는지
+ * - line이 양의 정수인지
+ * - line이 hunk 범위 안에 있는지
+ */
+function validateFindings(
+  findings: AgentFinding[],
+  context: PRContext,
+): { valid: AgentFinding[]; invalid: AgentFinding[] } {
+  const valid: AgentFinding[] = [];
+  const invalid: AgentFinding[] = [];
 
-  // Check if the line is within any hunk's range
-  return file.hunks.some(
-    (h) =>
-      finding.line >= h.newStart &&
-      finding.line < h.newStart + h.newLines,
-  );
+  for (const finding of findings) {
+    if (!Number.isInteger(finding.line) || finding.line < 1) {
+      invalid.push(finding);
+      continue;
+    }
+
+    const file = context.parsedDiff.find((f) => f.filename === finding.file);
+    if (!file) {
+      invalid.push(finding);
+      continue;
+    }
+
+    const inHunk = file.hunks.some(
+      (h) =>
+        finding.line >= h.newStart &&
+        finding.line < h.newStart + h.newLines,
+    );
+
+    if (inHunk) {
+      valid.push(finding);
+    } else {
+      invalid.push(finding);
+    }
+  }
+
+  return { valid, invalid };
 }
 
 function formatInlineComment(finding: AgentFinding): string {

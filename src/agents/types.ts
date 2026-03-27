@@ -32,7 +32,8 @@ export const REPORT_FINDINGS_TOOL = {
             },
             line: {
               type: "number" as const,
-              description: "새 버전 기준 줄 번호",
+              description:
+                "새 버전(new file) 기준 줄 번호. diff 왼쪽에 표기된 줄 번호를 그대로 사용하세요.",
             },
             endLine: {
               type: "number" as const,

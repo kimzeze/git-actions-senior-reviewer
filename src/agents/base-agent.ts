@@ -1,5 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { AgentFinding, AgentResult, PRContext } from "../config/types.js";
+import type {
+  AgentFinding,
+  AgentResult,
+  DiffHunk,
+  PRContext,
+} from "../config/types.js";
 import { logger } from "../utils/logger.js";
 import { REPORT_FINDINGS_TOOL, type ReviewAgent } from "./types.js";
 
@@ -23,7 +28,9 @@ export abstract class BaseAgent implements ReviewAgent {
 
     const diffContent = context.parsedDiff
       .map((f) => {
-        const hunks = f.hunks.map((h) => h.content).join("\n");
+        const hunks = f.hunks
+          .map((h) => annotateHunkWithLineNumbers(h))
+          .join("\n");
         return `### ${f.filename}\n\`\`\`diff\n${hunks}\n\`\`\``;
       })
       .join("\n\n");
@@ -90,4 +97,34 @@ ${diffContent}`;
       durationMs,
     };
   }
+}
+
+/**
+ * diff 각 줄에 새 파일 기준 줄 번호를 붙여서 AI의 줄 번호 보고 정확도를 높인다.
+ *
+ *   @@ -10,5 +10,7 @@
+ *    10:  const a = 1
+ *    11:  const b = 2
+ *    12: +const c = 3
+ *        -const old = 'removed'
+ */
+function annotateHunkWithLineNumbers(hunk: DiffHunk): string {
+  const lines = hunk.content.split("\n");
+  const annotated: string[] = [];
+  let newLineNum = hunk.newStart;
+
+  for (const line of lines) {
+    if (line.startsWith("@@")) {
+      annotated.push(line);
+    } else if (line.startsWith("-")) {
+      // 삭제된 줄은 새 파일에 없으므로 줄 번호 없이 표시
+      annotated.push(`     ${line}`);
+    } else {
+      // 추가된 줄(+) 또는 context 줄( )
+      annotated.push(`${String(newLineNum).padStart(4)}: ${line}`);
+      newLineNum++;
+    }
+  }
+
+  return annotated.join("\n");
 }
