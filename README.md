@@ -2,7 +2,7 @@
 
 PR이 열리면 멀티 에이전트 팀이 병렬로 코드를 리뷰하고, 검증된 결과를 PR 코멘트 + Slack으로 전달하는 AI 코드 리뷰 시스템입니다.
 
-<img width="903" height="1032" alt="image" src="https://github.com/user-attachments/assets/13f304b3-ef20-46c7-b7a8-0690fcb6852b" />
+<img width="911" height="939" alt="image" src="https://github.com/user-attachments/assets/7d006a8a-5df4-407d-908e-da833f4fc6f6" />
 
 
 > **새 레포에 적용하려면?** [`docs/SETUP_GUIDE.md`](docs/SETUP_GUIDE.md)를 참고하세요. AI 어시스턴트에게 이 파일을 제공하면 세팅을 도와줍니다.
