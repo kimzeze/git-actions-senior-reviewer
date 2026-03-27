@@ -55,7 +55,7 @@ export async function postReview(
   }
 
   // 2. 인라인 코멘트 시도 (batch — 알림 1개)
-  let inlineSuccess = false;
+  let inlinePosted = false;
   if (inlineFindings.length > 0) {
     const inlineComments = inlineFindings.slice(0, 50).map((f) => ({
       path: f.file,
@@ -71,25 +71,72 @@ export async function postReview(
         event: "COMMENT",
         comments: inlineComments,
       });
-      inlineSuccess = true;
+      inlinePosted = true;
       logger.info("인라인 리뷰 코멘트 작성 완료", {
         count: inlineComments.length,
       });
     } catch (error) {
-      logger.warn("인라인 리뷰 실패, 요약 코멘트에 포함", {
-        error: String(error),
+      // createReview가 에러를 던져도 실제로 리뷰가 생성될 수 있음 (부분 성공)
+      // 실제로 리뷰가 생성됐는지 확인
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const statusCode =
+        error && typeof error === "object" && "status" in error
+          ? (error as { status: number }).status
+          : undefined;
+      logger.warn("인라인 리뷰 API 에러 발생, 실제 생성 여부 확인 중", {
+        error: errorMessage,
+        status: statusCode,
       });
+
+      try {
+        const { data: reviews } = await octokit.rest.pulls.listReviews({
+          owner,
+          repo,
+          pull_number: prContext.number,
+          per_page: 5,
+        });
+        // 최근 리뷰 중 방금 생성된 것이 있는지 확인
+        const recentReview = reviews.find(
+          (r) =>
+            r.user?.login === "github-actions[bot]" ||
+            r.user?.type === "Bot",
+        );
+        if (recentReview) {
+          inlinePosted = true;
+          logger.info(
+            "인라인 리뷰가 실제로 생성됨 (API 에러에도 불구하고 부분 성공)",
+            { reviewId: recentReview.id },
+          );
+        }
+      } catch (checkError) {
+        logger.warn("리뷰 생성 여부 확인 실패", {
+          error: String(checkError),
+        });
+      }
     }
   }
 
   // 3. 요약 코멘트 게시 (항상 1회)
-  //    - 인라인 성공 시: 요약 + 인라인 불가 findings만
-  //    - 인라인 실패 시: 요약 + 모든 findings
-  const textFindings = inlineSuccess ? textOnlyFindings : findings;
-  const body =
-    textFindings.length > 0
-      ? summaryBody + "\n\n" + formatAllFindingsAsText(textFindings)
-      : summaryBody;
+  //    - 인라인 성공: 요약 테이블 + 제목 리스트 (상세는 인라인에서 확인)
+  //    - 인라인 실패: 요약 테이블 + 모든 findings 상세 내용
+  let body: string;
+  if (inlinePosted) {
+    // 인라인으로 게시된 findings는 제목만, 인라인 불가 findings만 상세 포함
+    const titleList = formatFindingsTitleList(inlineFindings);
+    body = summaryBody + "\n\n" + titleList;
+    if (textOnlyFindings.length > 0) {
+      body +=
+        "\n\n---\n\n> 아래 항목은 diff 범위 밖이어서 인라인 코멘트로 달지 못했습니다.\n\n" +
+        formatAllFindingsAsText(textOnlyFindings);
+    }
+  } else {
+    // 인라인 실패 — 모든 findings 상세 내용을 요약 코멘트에 포함
+    body =
+      findings.length > 0
+        ? summaryBody + "\n\n" + formatAllFindingsAsText(findings)
+        : summaryBody;
+  }
 
   await octokit.rest.issues.createComment({
     owner,
@@ -99,9 +146,9 @@ export async function postReview(
   });
 
   logger.info("요약 코멘트 작성 완료", {
-    inlineSuccess,
+    inlinePosted,
     inlineCount: inlineFindings.length,
-    textCount: textFindings.length,
+    textOnlyCount: textOnlyFindings.length,
   });
 }
 
@@ -222,6 +269,26 @@ function buildSummaryComment(
   body += `---\n*Powered by [Senior Reviewer](https://github.com/aptimizer-co/senior-reviewer) \u{1F916}*`;
 
   return body;
+}
+
+/**
+ * 인라인으로 게시된 findings의 제목만 리스트로 보여준다.
+ * 상세 내용은 코드 인라인 코멘트에서 확인하도록 안내.
+ */
+function formatFindingsTitleList(findings: AgentFinding[]): string {
+  if (findings.length === 0) return "";
+
+  let text = `### 인라인 리뷰 항목\n\n`;
+  text += `> 각 항목의 상세 내용과 수정 제안은 코드의 인라인 코멘트를 확인해주세요.\n\n`;
+
+  for (const f of findings) {
+    const emoji = SEVERITY_EMOJI[f.severity] ?? "";
+    const label = SEVERITY_LABEL[f.severity] ?? "";
+    const category = CATEGORY_LABEL[f.category] ?? "";
+    text += `- ${emoji} **[${label}]** ${f.title} (${category}) — \`${f.file}:${f.line}\`\n`;
+  }
+
+  return text;
 }
 
 function formatAllFindingsAsText(findings: AgentFinding[]): string {
